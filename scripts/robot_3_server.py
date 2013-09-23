@@ -1,10 +1,11 @@
 '''
+
 David Lettier
 http://www.lettier.com/
 
-Blender TCP/IP way point test.
+BlenderSim version 1.0.
 
-This file serves way points from client.py to the robot_controller.py file. It communicates with client.py.
+This file serves waypoints from robot_*_client.py to the robot_*_controller.py script. 
 
 '''
 

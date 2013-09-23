@@ -1,3 +1,14 @@
+'''
+
+David Lettier
+http://www.lettier.com/
+
+BlenderSim version 1.0.
+
+This script runs all robot clients in four subprocesses.
+
+'''
+
 import subprocess;
 
 if __name__ == '__main__':

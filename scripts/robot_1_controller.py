@@ -3,9 +3,9 @@
 David Lettier
 http://www.lettier.com/
 
-Blendersim version 1.0.
+BlenderSim version 1.0.
 
-This file controls the robot's movements to the waypoints--fed to it from robot_1_server.py.
+This file controls the robot's movements to the waypoints as fed to it from robot_*_server.py.
 
 '''
 

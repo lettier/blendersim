@@ -5,7 +5,7 @@ http://www.lettier.com/
 
 Blendersim version 1.0.
 
-This file populates the ../waypoint_logs files 1.log, 2.log, 3.log, and 4.log from some master log such as ../archive/PHYS_CS_Auction_A_1_3.log.
+This file populates the ../waypoint_logs files 1.log, 2.log, 3.log, and 4.log from some master log such as ../PHYS_CS_Auction_A_1_3.log.
 
 '''
 

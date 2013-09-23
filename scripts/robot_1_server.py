@@ -3,7 +3,7 @@
 David Lettier
 http://www.lettier.com/
 
-Blendersim version 1.0.
+BlenderSim version 1.0.
 
 This file serves waypoints from robot_*_client.py to the robot_*_controller.py script. 
 

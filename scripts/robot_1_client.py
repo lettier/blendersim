@@ -3,7 +3,7 @@
 David Lettier
 http://www.lettier.com/
 
-Blendersim version 1.0.
+BlenderSim version 1.0.
 
 This file makes a connection with robot_*_server.py, handshakes, and then feeds robot_*_server.py the waypoints as read from ../waypoint_logs/*.log.
 

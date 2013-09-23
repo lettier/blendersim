@@ -1,11 +1,11 @@
 '''
+
 David Lettier
 http://www.lettier.com/
 
-Blender TCP/IP way point test.
+BlenderSim version 1.0.
 
-This file makes a connection with server.py, handshakes, and then feeds server.py messages telling
-where the robot needs to go.
+This file makes a connection with robot_*_server.py, handshakes, and then feeds robot_*_server.py the waypoints as read from ../waypoint_logs/*.log.
 
 '''
 

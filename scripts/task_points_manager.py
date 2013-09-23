@@ -1,6 +1,9 @@
 '''
+
 David Lettier
 http://www.lettier.com/
+
+BlenderSim version 1.0.
 
 Blender task points manager.
 

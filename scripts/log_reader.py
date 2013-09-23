@@ -3,6 +3,8 @@
 David Lettier
 http://www.lettier.com/
 
+BlenderSim version 1.0.
+
 This file reads a log file with at most one robot.
 
 Use this class to read a log file and capture the CAMPOSEs and WAYPOINTs.
