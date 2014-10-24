@@ -1,262 +1,296 @@
 '''
 
-David Lettier
+David Lettier (C) 2014.
+
 http://www.lettier.com/
 
-BlenderSim version 1.0.
+BlenderSim Version 2.0
 
-This file controls the robot's movements to the waypoints as fed to it from robot_*_server.py.
+This file controls the robot's movements.
 
 '''
 
 # Imports.
 
-import mathutils, math, time, copy, datetime, os;
+import mathutils
+import math
+import time
+import pickle
+
+bge = bge  # To avoid Flake8 lint errors.
+
+
+def robot_1_moving():
+  '''
+    Determines if the robot is still moving by the cardinality of the
+    set symmetric difference between the robot's current state and its
+    last recorded state.
+
+    If the cardinality is zero, then the robot is not moving.
+    If the cardinality is greater than zero, it tests if the movement is
+    within a small threshold.
+  '''
+
+  robot_1_base = bge.logic.getCurrentScene().objects["robot_1_base"]
+
+  test = {
+
+      "xpos": robot_1_base.worldPosition.x * 100.0,
+      "ypos": robot_1_base.worldPosition.y * 100.0,
+      "zpos": robot_1_base.worldPosition.z * 100.0,
+      "xrot": robot_1_base.worldOrientation.to_euler().x,
+      "yrot": robot_1_base.worldOrientation.to_euler().y,
+      "zrot": robot_1_base.worldOrientation.to_euler().z
+
+  }
+
+  stopped = len(
+      set(test.items()) ^ set(bge.logic.globalDict["robot_1_state"].items())
+  )
+
+  if (stopped == 0):
+
+    return False
+
+  else:
+
+    x1 = bge.logic.globalDict["robot_1_simulated_poses"][-2][1]
+    y1 = bge.logic.globalDict["robot_1_simulated_poses"][-2][2]
+    z1 = bge.logic.globalDict["robot_1_simulated_poses"][-2][3]
+
+    x2 = test["xpos"]
+    y2 = test["ypos"]
+    z2 = test["zrot"]
+
+    dx = abs(x1 - x2)
+    dy = abs(y1 - y2)
+    dz = abs(z1 - z2)
+
+    if (dx <= 0.02 and dy <= 0.02 and dz <= 0.00087):
+
+      return False
+
+    else:
+
+      return True
+
+
+def update_robot_1_state():
+
+  robot_1_base = bge.logic.getCurrentScene().objects["robot_1_base"]
+
+  bge.logic.globalDict["robot_1_state"] = {
+
+      "xpos": robot_1_base.worldPosition.x * 100.0,
+      "ypos": robot_1_base.worldPosition.y * 100.0,
+      "zpos": robot_1_base.worldPosition.z * 100.0,
+      "xrot": robot_1_base.worldOrientation.to_euler().x,
+      "yrot": robot_1_base.worldOrientation.to_euler().y,
+      "zrot": robot_1_base.worldOrientation.to_euler().z
+
+  }
+
+
+def stop_robot_1():
+
+  bge.logic.robot_1_wheel_front_L.applyTorque([0.0, 0.0, 0.0], True)
+  bge.logic.robot_1_wheel_front_R.applyTorque([0.0, 0.0, 0.0], True)
+  bge.logic.robot_1_wheel_back_L.applyTorque([0.0, 0.0, 0.0], True)
+  bge.logic.robot_1_wheel_back_R.applyTorque([0.0, 0.0, 0.0], True)
+
+
+def drop_robot_1_campose_marker():
+
+  robot_1_campose_marker = bge.logic.getCurrentScene().addObject(
+      "robot_1_campose_marker",
+      obj
+  )
+  robot_1_campose_marker.worldPosition = obj.worldPosition
+  robot_1_campose_marker.worldPosition.z = 23.0 / 100.0
+
+
+def drop_robot_1_waypoint_marker(waypoint):
+
+  robot_1_waypoint_marker = bge.logic.getCurrentScene().addObject(
+      "waypoint_marker",
+      obj
+  )
+  robot_1_waypoint_marker.worldPosition.x = waypoint[1] / 100.0
+  robot_1_waypoint_marker.worldPosition.y = waypoint[0] / 100.0
+  robot_1_waypoint_marker.worldPosition.z = 25.0 / 100.0
+
+
+def add_sim_pose():
+
+  bge.logic.globalDict["robot_1_simulated_poses"].append(
+      [
+          time.time() * 1000.0,
+          obj.worldPosition[0] * 100.0,
+          obj.worldPosition[1] * 100.0,
+          obj.worldOrientation.to_euler().z
+      ]
+  )
 
 # Globals.
 
-local = True;
+local = True
 
-world = False;
+world = False
 
 # Get the controller.
-controller = bge.logic.getCurrentController( );
+
+controller = bge.logic.getCurrentController()
 
 # Get the game object that the controller is attached to.
-obj = controller.owner;
+
+obj = controller.owner
 
 # Initialize variables and flags.
-if ( obj[ "init" ] == 1 ):
 
-	obj[ "init" ] = 0;	
-	
-	obj[ "robot_world_position" ] = str( obj.worldPosition );
-	
-	bge.logic.robot_1_add_marker = True;
-	
-	bge.logic.robot_1_robot_body_wPos = copy.deepcopy( obj.worldPosition );
-	
-	bge.logic.robot_1_rotate = False;
-	
-	bge.logic.robot_1_time_then = time.time( );
-	
-	bge.logic.robot_1_laydown_campose_time_then = time.time( );
-	
-	bge.logic.robot_1_orientation_then = ( obj.worldOrientation.to_euler( )[ 2 ] * 180.0 ) / math.pi;
-	
-	bge.logic.robot_1_magnitude_then = ( obj.worldPosition - bge.logic.robot_1_robot_body_wPos ).magnitude;
-	
-	bge.logic.robot_1_inc_then = 0;
-	
-	bge.logic.robot_1_wait_to_go_forward = 0;
-	
-	bge.logic.robot_1_angle_moved_sum = 0;
-	
-	bge.logic.robot_1_turn = 1;
-	
-	bge.logic.robot_1_turn_by = .096;
-	
-	bge.logic.robot_1_time_start_of_simulation = time.time( );
-	
-	bge.logic.robot_1_time_since_last_log = time.time( );
-	
-	obj[ "traveling" ] = "0";
-	obj[ "stopped" ]   = "1";
-	
-	# Remove the log if it is already created.
-	
-	try:
-		
-		os.remove( "./robot_logs/robot_1.log" );
-		
-	except OSError:
-		
-		pass;
-	
-	log_file = open( "./robot_logs/robot_1.log", "a" );
-			
-	time_stamp = datetime.datetime.fromtimestamp( time.time( ) ).strftime( '%H:%M:%S.%f' );
-	
-	# Create the headers for the CSV file.
-	
-	log_file.write( "time_stamp" + "\t" + "time_since_sim_start (seconds)" + "\t" + "time_since_last_log_entry (seconds)" + "\t" + "log_type" + "\t" + "x" + "\t" + "y" + "\t" + "theta" + "\t" + "waypoint" + "\t" + "\n" ) 
-	
-	log_file.close( );
+if (obj["init"] is True):
 
-# Get owner's world orientation. 
-orientation = obj.worldOrientation;
+  obj["init"] = False
 
-obj[ "robot_world_orientation" ] = str( orientation.to_euler( )[ 2 ] );
-obj[ "robot_world_position" ] = str( obj.worldPosition );
+  # Robot 1's wheels.
 
-waypointString = obj[ "waypoint_coordinate" ]; # Get the way point coordinate string.
+  bge.logic.robot_1_wheel_front_L = bge.logic.getCurrentScene().objects[
+      "robot_1_wheel_front_L"
+  ]
+  bge.logic.robot_1_wheel_front_R = bge.logic.getCurrentScene().objects[
+      "robot_1_wheel_front_R"
+  ]
+  bge.logic.robot_1_wheel_back_L = bge.logic.getCurrentScene().objects[
+      "robot_1_wheel_back_L"
+  ]
+  bge.logic.robot_1_wheel_back_R = bge.logic.getCurrentScene().objects[
+      "robot_1_wheel_back_R"
+  ]
 
-if ( waypointString != "" ):
-	
-	obj[ "traveling" ] = "1";
-	obj[ "stopped" ]   = "0";	
-	
-	go = 1;
-	
-	# Going forward.
+  bge.logic.robot_1_last_move_time = time.time() * 1000.0
 
-	if ( bge.logic.robot_1_turn == 0 ): # Start moving towards the way point if the robot is done turning.
+  update_robot_1_state()
 
-		#left_wheels = [ "robot_1_wheel_front_L", "robot_1_wheel_back_L" ];
-	
-		#right_wheels = [ "robot_1_wheel_front_R", "robot_1_wheel_back_R" ];
+  bge.logic.globalDict["robot_1_waypoints"] = [
+      "stop"
+  ]
 
-		#for wheel in right_wheels:
-			
-			#bge.logic.getCurrentScene( ).objects[ wheel ].applyRotation( [ 0, 0.384775442, 0 ], local );
-			
-		#for wheel in left_wheels:
-			
-			#bge.logic.getCurrentScene( ).objects[ wheel ].applyRotation( [ 0, 0.384775442, 0 ], local );
-		
-		obj.applyMovement( [ go * 0.384775442, 0, 0 ], local );
-		
-		# If the last time a campose was logged and drawn is greater than ~ 33 ms.
-		
-		if ( ( time.time() - bge.logic.robot_1_laydown_campose_time_then ) >= 0.033989 ):
-		
-			bge.logic.robot_1_laydown_campose_time_then = time.time( );
-		
-			campose = bge.logic.getCurrentScene( ).addObject( "robot_1_campose_marker", obj );
+  bge.logic.globalDict["robot_1_simulated_poses"] = []
 
-			campose.worldPosition = obj.worldPosition;
+  add_sim_pose()
 
-			campose.worldPosition.z += 3;
-			
-			log_file = open( "./robot_logs/robot_1.log", "a" );
-			
-			time_stamp = datetime.datetime.fromtimestamp( time.time( ) ).strftime( '%H:%M:%S.%f' );
-			
-			log_file.write( str( time_stamp ) + "\t" + str( time.time( ) - bge.logic.robot_1_time_start_of_simulation ) + "\t" + str( time.time( ) - bge.logic.robot_1_time_since_last_log ) + "\t" + " CAMPOSE " + "\t" + str( obj.worldPosition.x ) + "\t" + str( obj.worldPosition.y ) + "\t" + str( orientation.to_euler( )[ 2 ] ) + "\n" ); 
-			
-			bge.logic.robot_1_time_since_last_log = time.time( );
-			
-			log_file.close( );
-			
-		# Calculate distance between robot position and way point position.
-	
-		p = mathutils.Vector( obj.worldPosition );
-		
-		q = mathutils.Vector( ( float( waypointString.split( "," )[ 0 ] ), float( waypointString.split( "," )[ 1 ] ), 1.0 ) );
+if (
+    (bge.logic.globalDict["robot_1_waypoints"][0] != "stop") and
+    (not robot_1_moving()) and
+    ((time.time() * 1000.0) - bge.logic.robot_1_last_move_time >= 0.0)
+):
 
-		v = p - q;
-		
-		dist = math.sqrt( v.dot( v ) );
-		
-		obj[ "dist_to_waypoint" ] = dist;
-			
-		if ( dist <= 1.5  ):
-				
-			# The robot is close enough to the way point, so stop and reset the flags.	
-			
-			# Log campose in the log file.
-			
-			log_file = open( "./robot_logs/robot_1.log", "a" );
-		
-			time_stamp = datetime.datetime.fromtimestamp( time.time( ) ).strftime( '%H:%M:%S.%f' );
-		
-			log_file.write( str( time_stamp ) + "\t" + str( time.time( ) - bge.logic.robot_1_time_start_of_simulation ) + "\t" + str( time.time( ) - bge.logic.robot_1_time_since_last_log ) + "\t" + " REACHED WAYPOINT " + "\t" + str( obj.worldPosition.x ) + "\t" + str( obj.worldPosition.y ) + "\t" + str( orientation.to_euler( )[ 2 ] ) + "\t" + "(" + obj[ "waypoint_coordinate" ] + ")" + "\n" ); 
-		
-			bge.logic.robot_1_time_since_last_log = time.time( );
-			
-			log_file.close( );
-			
-			# Reset flags and rotation parameters.
+  # Get and drop the next waypoint in the arena.
+  # Note that waypoint[1] = X and waypoint[0] = Y.
 
-			go = 0;
-			rotateZ = 0;
-			bge.logic.robot_1_turn = 1;				
-			bge.logic.robot_1_turn_by = .096;
-			
-			obj[ "traveling" ]				= "0";
-			obj[ "stopped" ]  			 	= "1";
-			obj[ "waypoint_coordinate" ]		= "";
-			
-			# Ask for the next way point.
-			obj[ "next" ]      				= "1";
-			
-	# Rotating.
-			
-	elif ( bge.logic.robot_1_turn != 0 ): # Start turning to face the waypoint.
-		
-		# Convert way point string to a 3D vector.
-	
-		waypoint = mathutils.Vector( ( float( waypointString.split( "," )[ 0 ] ), float( waypointString.split( "," )[ 1 ] ), 1.0 ) );
+  waypoint = bge.logic.globalDict["robot_1_waypoints"][0]
 
-		# Translate the way point to the robot's local space.
-		
-		mat_trans = mathutils.Matrix.Translation( ( -obj.worldPosition[ 0 ], -obj.worldPosition[ 1 ], -obj.worldPosition[ 2 ] ) );
+  drop_robot_1_waypoint_marker(waypoint)
 
-		waypoint_trans = mat_trans * waypoint;
+  # Calculate the angle to turn in order to face the waypoint.
 
-		waypoint_rot = mathutils.Matrix.Rotation( -orientation.to_euler( )[ 2 ], 4, 'Z') * waypoint_trans;
-		
-		# Now that the way point world coordinate is transformed to the robot's local space, 
-		# compute the angle between the robot's  x-axis and the way point line going from the 
-		# robot's origin to the way point.
-		
-		rotateZ = math.atan2( waypoint_rot[ 1 ], waypoint_rot[ 0 ] );
+  # Convert the waypoint to a 3D vector.
 
-		#turn = 1 # Turn the robot.
-		
-		rotateZ = float( str( "%.4f" % rotateZ ) );
+  waypoint = mathutils.Vector((waypoint[1], waypoint[0], 1.0))
 
-		if ( rotateZ < 0.0 ):
+  # Translate the waypoint to the robot's local space.
 
-			bge.logic.robot_1_turn = -1; # If angle is negative, turn the other direction.
-			
-		if ( rotateZ > 0.0 ):
-			
-			bge.logic.robot_1_turn = 1;
+  mat_trans = mathutils.Matrix.Translation(
+      (
+          -obj.worldPosition[0] * 100.0,
+          -obj.worldPosition[1] * 100.0,
+          -obj.worldPosition[2] * 100.0
+      )
+  )
 
-		if ( abs( rotateZ ) <= .0035 ):
+  waypoint_trans = mat_trans * waypoint
 
-			bge.logic.robot_1_turn = 0; # At a certain point, stop turning and start moving forward.
+  waypoint_rot = mathutils.Matrix.Rotation(
+      -obj.worldOrientation.to_euler()[2], 4, "Z"
+  ) * waypoint_trans
 
-		obj[ "rotate_to_face_waypoint"]          = rotateZ; # The angle the robot needs to turn to face the way point.
-		obj[ "waypoint_coordinate_transformed" ] = str( waypoint_rot ); # The way points coordinates transformed to the robot's local space.
-		obj[ "turn" ]     					 = str( bge.logic.robot_1_turn );
-		obj[ "go" ]       					 = str( go );
+  # Now that the waypoint world coordinate is transformed to the
+  # robot's local space, compute the angle between the robot's x-axis
+  # and the waypoint line going from the robot's origin to the waypoint.
 
-		orientation = obj.worldOrientation;
+  rotateZ = math.atan2(waypoint_rot[1], waypoint_rot[0])
 
-		obj[ "robot_world_orientation" ] = str( orientation.to_euler( )[ 2 ] ); # Robot's world orientation.
-		
-		bge.logic.robot_1_turn_by = .096 * abs( rotateZ );		
-		
-		if ( bge.logic.robot_1_turn_by > .096 ):
-			
-			bge.logic.robot_1_turn_by = .096;
-			
-		#left_wheels = [ "robot_1_wheel_front_L", "robot_1_wheel_back_L" ]
-	
-		#right_wheels = [ "robot_1_wheel_front_R", "robot_1_wheel_back_R" ]
-		
-		# Either rotate right or left.
-		
-		#if ( bge.logic.robot_1_turn == 1 ):			
+  # First turn and then move forward.
 
-			#for wheel in right_wheels:
-				
-				#bge.logic.getCurrentScene( ).objects[ wheel ].applyRotation( [ 0, 0.02, 0 ], local )
-				
-			#for wheel in left_wheels:
-				
-				#bge.logic.getCurrentScene( ).objects[ wheel ].applyRotation( [ 0, -0.02, 0 ], local )
-					
-		#elif ( bge.logic.robot_1_turn == -1 ):
-			
-			#for wheel in right_wheels:
-				
-				#bge.logic.getCurrentScene( ).objects[ wheel ].applyRotation( [ 0, -0.02, 0 ], local )
-				
-			#for wheel in left_wheels:
-				
-				#bge.logic.getCurrentScene( ).objects[ wheel ].applyRotation( [ 0, 0.02, 0 ], local )
-		
-		obj.applyRotation( [ 0, 0, bge.logic.robot_1_turn * ( bge.logic.robot_1_turn_by ) ], local );
+  rotateZ = rotateZ * 180.0 / math.pi
+
+  if (abs(rotateZ) < 1.0):  # Turn error threshold.
+
+    a = 82.7271515601
+    b = 23.12349975
+    c = waypoint_rot[0]
+    f = (a / b) * c
+
+    bge.logic.robot_1_wheel_front_L.applyTorque([0.0, 0.0, f], True)
+    bge.logic.robot_1_wheel_front_R.applyTorque([0.0, 0.0, f], True)
+    bge.logic.robot_1_wheel_back_L.applyTorque([0.0, 0.0, f], True)
+    bge.logic.robot_1_wheel_back_R.applyTorque([0.0, 0.0, f], True)
+
+    print(
+        '[robot_1_controller]',
+        'Reached waypoint:',
+        bge.logic.globalDict["robot_1_waypoints"][0][::-1]
+    )
+
+    bge.logic.globalDict["robot_1_waypoints"] = bge.logic.globalDict[
+        "robot_1_waypoints"
+    ][1:]
+
+  elif (rotateZ < 0.0):
+
+    a = 20.8
+    b = 44.260811
+    c = abs(rotateZ)
+    t = (a / b) * c
+
+    bge.logic.robot_1_wheel_front_L.applyTorque([0.0, 0.0, t], True)
+    bge.logic.robot_1_wheel_front_R.applyTorque([0.0, 0.0, -t], True)
+    bge.logic.robot_1_wheel_back_L.applyTorque([0.0, 0.0, t], True)
+    bge.logic.robot_1_wheel_back_R.applyTorque([0.0, 0.0, -t], True)
+
+  elif (rotateZ > 0.0):
+
+    a = 20.8
+    b = 44.260811
+    c = abs(rotateZ)
+    t = (a / b) * c
+
+    bge.logic.robot_1_wheel_front_L.applyTorque([0.0, 0.0, -t], True)
+    bge.logic.robot_1_wheel_front_R.applyTorque([0.0, 0.0, t], True)
+    bge.logic.robot_1_wheel_back_L.applyTorque([0.0, 0.0, -t], True)
+    bge.logic.robot_1_wheel_back_R.applyTorque([0.0, 0.0, t], True)
+
+  bge.logic.robot_1_last_move_time = time.time() * 1000.0
+
+update_robot_1_state()
+
+stop_robot_1()
+
+add_sim_pose()
+
+drop_robot_1_campose_marker()
+
+if (not robot_1_moving()):
+
+  # The robot is no longer moving so pickle out its simulated camera poses or
+  # positions for later analysis.
+
+  pickle_file = open("./pickled_data/robot_1_simulated_motion.pkl", "wb")
+
+  pickle.dump(
+      bge.logic.globalDict["robot_1_simulated_poses"],
+      pickle_file,
+      protocol=2,
+      fix_imports=True
+  )
+
+  pickle_file.close()
