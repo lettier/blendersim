@@ -1,4 +1,4 @@
-![Alt text](https://raw.github.com/lettier/blendersim/master/screenshot.jpg)
+![Alt text](https://raw.githubusercontent.com/lettier/blendersim/thesis_proof_of_concept/screenshot.jpg)
 
 # BlenderSim
 
